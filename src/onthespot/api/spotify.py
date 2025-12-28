@@ -570,7 +570,7 @@ def spotify_get_track_metadata(token, item_id):
         logger.error(error_msg)
         raise ValueError(error_msg)
     
-    artist_id = artists_list[0].get('id') if artists_list[0] else None
+    artist_id = artists_list[0].get('id') if artists_list and artists_list[0] else None
     if not artist_id:
         error_msg = f"Artist ID not found for track {item_id}"
         logger.error(error_msg)
@@ -615,7 +615,7 @@ def spotify_get_track_metadata(token, item_id):
     # Safely get album_artists with proper validation
     if album_data:
         album_artists_list = album_data.get('artists', [])
-        info['album_artists'] = album_artists_list[0].get('name') if album_artists_list else ''
+        info['album_artists'] = album_artists_list[0].get('name') if album_artists_list and album_artists_list[0] else ''
     else:
         info['album_artists'] = ''
     
@@ -646,7 +646,7 @@ def spotify_get_track_metadata(token, item_id):
     info['copyright'] = conv_list_format([holder.get('text') for holder in album_data.get('copyrights', [])]) if album_data else ''
     info['explicit'] = track.get('explicit', False)
     info['isrc'] = track.get('external_ids', {}).get('isrc')
-    info['length'] = str(track.get('duration_ms'))
+    info['length'] = str(track.get('duration_ms') or 0)
     info['item_url'] = track.get('external_urls', {}).get('spotify')
     #info['popularity'] = track.get('popularity')
     info['item_id'] = track.get('id')
