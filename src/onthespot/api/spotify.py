@@ -538,13 +538,13 @@ def spotify_get_track_metadata(token, item_id):
     track_data = make_call(f'{BASE_URL}/tracks?ids={item_id}&market=from_token', headers=headers)
     
     # Validate track_data exists and contains tracks
-    if not track_data or not track_data.get('tracks'):
+    if not track_data:
         error_msg = f"Failed to fetch track data for item_id: {item_id}. API returned empty or invalid response."
         logger.error(error_msg)
         raise ValueError(error_msg)
     
     tracks_list = track_data.get('tracks', [])
-    if not tracks_list or len(tracks_list) == 0:
+    if not tracks_list:
         error_msg = f"No tracks found in response for item_id: {item_id}"
         logger.error(error_msg)
         raise ValueError(error_msg)
@@ -565,7 +565,7 @@ def spotify_get_track_metadata(token, item_id):
     
     # Safely extract artist_id
     artists_list = track.get('artists', [])
-    if not artists_list or len(artists_list) == 0:
+    if not artists_list:
         error_msg = f"No artists found for track {item_id}"
         logger.error(error_msg)
         raise ValueError(error_msg)
@@ -607,23 +607,40 @@ def spotify_get_track_metadata(token, item_id):
 
     info = {}
     info['artists'] = artists
-    info['album_name'] = track.get('album', {}).get("name", '')
+    
+    # Use album_info extracted earlier (line 559) to avoid repeated lookups
+    info['album_name'] = album_info.get("name", '')
     info['album_type'] = album_data.get('album_type') if album_data else None
-    info['album_artists'] = album_data.get('artists', [{}])[0].get('name') if album_data else ''
+    
+    # Safely get album_artists with proper validation
+    if album_data:
+        album_artists_list = album_data.get('artists', [])
+        info['album_artists'] = album_artists_list[0].get('name') if album_artists_list else ''
+    else:
+        info['album_artists'] = ''
+    
     info['title'] = track.get('name')
 
     try:
-        info['image_url'] = track.get('album', {}).get('images', [{}])[0].get('url')
+        info['image_url'] = album_info.get('images', [{}])[0].get('url')
     except IndexError:
         info['image_url'] = ''
         logger.info('Invalid thumbnail')
 
-    info['release_year'] = track.get('album', {}).get('release_date', '').split("-")[0] if track.get('album', {}).get('release_date') else ''
+    release_date = album_info.get('release_date', '')
+    info['release_year'] = release_date.split("-")[0] if release_date else ''
     #info['track_number'] = track.get('track_number')
     info['track_number'] = track_number
-    info['total_tracks'] = track.get('album', {}).get('total_tracks')
+    info['total_tracks'] = album_info.get('total_tracks')
     info['disc_number'] = track.get('disc_number')
-    info['total_discs'] = sorted([trk.get('disc_number', 0) for trk in album_data.get('tracks', {}).get('items', [])])[-1] if album_data and 'tracks' in album_data else 1
+    
+    # Safely get total_discs with proper validation
+    if album_data and 'tracks' in album_data:
+        disc_numbers = [trk.get('disc_number', 0) for trk in album_data.get('tracks', {}).get('items', [])]
+        info['total_discs'] = sorted(disc_numbers)[-1] if disc_numbers else 1
+    else:
+        info['total_discs'] = 1
+    
     info['genre'] = conv_list_format(artist_data.get('genres', [])) if artist_data else ''
     info['label'] = album_data.get('label') if album_data else ''
     info['copyright'] = conv_list_format([holder.get('text') for holder in album_data.get('copyrights', [])]) if album_data else ''
